@@ -9,11 +9,11 @@
 int main(int argc, char *argv[])
 {
     QCoreApplication app( argc, argv );
-    QCoreApplication::setApplicationName("kxml_compiler");
-    QCoreApplication::setOrganizationName("kode");
+    QCoreApplication::setApplicationName("nut_codegen");
+    QCoreApplication::setOrganizationName("MM");
 
     QCommandLineParser cmdLine;
-    cmdLine.setApplicationDescription("KDE xml compiler");
+    cmdLine.setApplicationDescription("NUT ORM code generator");
     cmdLine.addHelpOption();
     cmdLine.addVersionOption();
 
@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 
     QCommandLineOption hostOption(
                 QStringList() << "host",
-                QCoreApplication::translate("main", "The name of the database"),
+                QCoreApplication::translate("main", "Server to connect (by default it is localhost)"),
                 "host");
     cmdLine.addOption(hostOption);
 
@@ -48,6 +48,7 @@ int main(int argc, char *argv[])
                 "user");
     cmdLine.addOption(userOption);
 
+    cmdLine.process(app);
     if (!cmdLine.parse(QCoreApplication::arguments())) {
       qDebug() << cmdLine.errorText();
       return -1;
