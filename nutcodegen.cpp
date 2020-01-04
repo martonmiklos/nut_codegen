@@ -249,6 +249,8 @@ bool NutCodeGen::generateDatabaseClass()
         constructor.addInitializer(QString("m_%1(new Nut::TableSet<%2>(this))")
                                    .arg(Inflector::underScore(table->m_name).toLower())
                                    .arg(Namer::getClassName(table->m_name)));
+
+        constructor.addBodyLine(QString("qRegisterMetaType<%1*>();").arg(Namer::getClassName(table->m_name)));
     }
     dbClass.addFunction(constructor);
 
