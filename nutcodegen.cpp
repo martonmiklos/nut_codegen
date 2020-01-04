@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QSqlError>
 #include <QSqlQuery>
+#include <QRegularExpression>
 
 #include "inflector.h"
 #include "fieldqttypelookup.h"
@@ -156,6 +157,14 @@ bool NutCodeGen::generateFiles()
         constructor.addArgument(parent);
 
         for (auto field : table->m_fields) {
+            if (field.m_databaseType.startsWith("enum")) {
+                QRegularExpression re("enum\\(([^\\)]*)\\)");
+                QRegularExpressionMatch matches = re.match(field.m_databaseType);
+                QString enumItemsString = matches.captured(1).remove('\'');
+                Enum fieldTypeEnum(Namer::getClassName(field.m_name) + "_Enum", enumItemsString.split(",", QString::SplitBehavior::SkipEmptyParts));
+                tableClass.addEnum(fieldTypeEnum);
+            }
+
             if (field.m_isPrimary) {
                 if (field.m_autoIncrement) {
                     tableClass.addDeclarationMacro(QString("NUT_PRIMARY_AUTO_INCREMENT(%1)")

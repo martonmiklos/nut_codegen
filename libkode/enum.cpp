@@ -134,7 +134,7 @@ KODE::Function Enum::parserMethod() const
   ret.setStatic(true);
 
   ret.addArgument("const QString & v");
-  ret.addArgument( "bool *ok", "NULL" );
+  ret.addArgument( "bool *ok", "nullptr" );
 
   KODE::Code code;
   code += "if (ok) *ok = true;";
