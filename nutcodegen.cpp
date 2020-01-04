@@ -230,6 +230,7 @@ bool NutCodeGen::generateDatabaseClass()
     dbClass.addHeaderInclude("Database");
     dbClass.addInclude("", "Database");
     dbClass.addInclude("TableSet", "TableSet");
+    dbClass.addDeclarationMacro("Q_OBJECT");
     dbClass.addDeclarationMacro("NUT_DB_VERSION(1)");
     dbClass.addBaseClass(base);
 

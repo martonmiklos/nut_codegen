@@ -383,7 +383,17 @@ QString Printer::Private::classImplementation( const Class &classObject, bool ne
 
     if (!inits.isEmpty()) {
       code.indent();
-      code += ": " + inits.join( ", " );
+      for (auto init : inits) {
+          if (init == inits.first()) {
+              if (init == inits.last())
+                code.addLine(": " + init);
+              else
+                code.addLine(": " + init + ",");
+          } else if (init == inits.last())
+              code.addLine(init);
+          else
+              code.addLine(init + ",");
+      }
       code.unindent();
     }
 
