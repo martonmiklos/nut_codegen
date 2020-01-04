@@ -150,6 +150,7 @@ bool NutCodeGen::generateFiles()
         tableClass.addInclude("", "Table");
         tableClass.addBaseClass(base);
         tableClass.addDeclarationMacro("Q_OBJECT");
+        tableClass.setDeclareMetatype();
 
 
         Function constructor(Namer::getClassName(tableClass.name()));
@@ -228,6 +229,7 @@ bool NutCodeGen::generateDatabaseClass()
     Class base("Nut::Database");
 
     dbClass.addHeaderInclude("Database");
+    dbClass.addHeaderInclude("Query");
     dbClass.addInclude("", "Database");
     dbClass.addInclude("TableSet", "TableSet");
     dbClass.addDeclarationMacro("Q_OBJECT");
@@ -253,6 +255,11 @@ bool NutCodeGen::generateDatabaseClass()
 
     File file;
     file.setFilename(m_database);
+    Code code;
+    code.addLine("#ifdef NUT_NAMESPACE");
+    code.addLine("using namespace NUT_NAMESPACE;");
+    code.addLine("#endif");
+    file.addFileCode(code);
     file.clearCode();
     file.insertClass(dbClass);
     m_printer.printHeader(file);
