@@ -290,6 +290,12 @@ QString Printer::Private::classHeader( const Class &classObject, bool publicMemb
 
   code += "};";
 
+  if (classObject.declareMetatype()) {
+      code.newLine();
+      code.addLine(QString("Q_DECLARE_METATYPE(%1*)").arg(classObject.name()));
+      code.newLine();
+  }
+
   for (int i = 0; i < numNamespaces; ++i) {
       code.unindent();
       code += "} // namespace end";

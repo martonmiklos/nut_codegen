@@ -54,6 +54,7 @@ class Class::Private
     Class::List mNestedClasses;
     QString mParentClassName;
     QList<DeclarationMacro> mDeclMacros;
+    bool mDeclareMetaType = false;
 };
 
 Class::Class()
@@ -482,6 +483,16 @@ void KODE::Class::addDeclarationMacro(const QString &macro, bool addNewLine)
 QList<KODE::Class::DeclarationMacro> KODE::Class::declarationMacros() const
 {
     return d->mDeclMacros;
+}
+
+void Class::setDeclareMetatype(bool declare)
+{
+    d->mDeclareMetaType = declare;
+}
+
+bool Class::declareMetatype() const
+{
+    return d->mDeclareMetaType;
 }
 
 void KODE::Class::setNamespaceAndName( const QString& name )

@@ -326,6 +326,19 @@ class KODE_EXPORT Class
      */
     QList<KODE::Class::DeclarationMacro> declarationMacros() const;
 
+    /**
+     * @brief setDeclareMetatype
+     * @param declare if this parameter is set to true then a Q_DECLARE_METATYPE(classname*)
+     * will be generated after the class declaration
+     */
+    void setDeclareMetatype(bool declare = true);
+
+    /**
+     * @brief declareMetatype
+     * @return true if a Q_DECLARE_METATYPE(classname*) line will be generated after the class definition
+     */
+    bool declareMetatype() const;
+
   private:
     class Private;
     Private* d;
