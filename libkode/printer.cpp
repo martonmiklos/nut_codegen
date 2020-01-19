@@ -881,7 +881,10 @@ void Printer::printImplementation( const File &file, bool createHeaderInclude )
     QStringList::ConstIterator it2;
     for ( it2 = includes.constBegin(); it2 != includes.constEnd(); ++it2 ) {
       if ( !processed.contains( *it2 ) ) {
-        out += "#include <" + *it2 + '>';
+        if ((*it2).startsWith("\""))
+            out += "#include " + *it2;
+        else
+            out += "#include <" + *it2 + '>';
         processed.append( *it2 );
       }
     }
