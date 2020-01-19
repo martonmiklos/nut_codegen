@@ -69,7 +69,9 @@ bool NutCodeGen::readTables()
     }
 
     while (showTablesQuery.next()) {
-        m_tables << new Table(showTablesQuery.value(0).toString());
+        if (showTablesQuery.value(0).toString() != ""
+                && showTablesQuery.value(0).toString().toLower() != "__change_logs")
+            m_tables << new Table(showTablesQuery.value(0).toString());
     }
 
     return true;
@@ -105,28 +107,33 @@ bool NutCodeGen::readRelations()
     for (auto table : m_tables) {
         for (auto field : table->m_fields) {
             QSqlQuery foreignKeyQuery;
-            foreignKeyQuery.prepare("SELECT TABLE_NAME,COLUMN_NAME,CONSTRAINT_NAME, REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME "
+            foreignKeyQuery.prepare("SELECT REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME "
                                     " FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE "
                                     " WHERE "
                                     " REFERENCED_TABLE_SCHEMA = :database AND "
-                                    " REFERENCED_TABLE_NAME = :table AND "
-                                    " REFERENCED_COLUMN_NAME = :field;");
+                                    " TABLE_NAME = :table AND "
+                                    " COLUMN_NAME = :field;");
             foreignKeyQuery.bindValue(":database", m_database);
             foreignKeyQuery.bindValue(":table", table->m_name);
             foreignKeyQuery.bindValue(":field", field.m_name);
-            qWarning() << m_database << table->m_name << field.m_name;
             if (foreignKeyQuery.exec()) {
                 while (foreignKeyQuery.next()) {
-                    TableRelation rel;
-                    rel.m_type = TableRelation::HasMany;
-                    rel.tableA = table;
                     for(auto t2 : m_tables) {
-                        if (t2->m_name == foreignKeyQuery.value("TABLE_NAME").toString()) {
-                            rel.tableB = t2;
+                        if (t2->m_name == foreignKeyQuery.value("REFERENCED_TABLE_NAME").toString()) {
+                            qWarning() << m_database << table->m_name << field.m_name << t2->m_name;
+                            TableRelation rel;
+                            rel.m_type = TableRelation::BelongsTo;
+                            rel.destinationTable = t2;
+                            rel.fieldName = field.m_name;
+                            table->m_relations.append(rel);
+
+                            TableRelation backRel;
+                            backRel.m_type = TableRelation::HasMany;
+                            backRel.destinationTable = table;
+                            t2->m_relations.append(backRel);
                             break;
                         }
                     }
-                    table->m_relations.append(rel);
                 }
             }
         }
@@ -162,7 +169,10 @@ bool NutCodeGen::generateFiles()
                 QRegularExpression re("enum\\(([^\\)]*)\\)");
                 QRegularExpressionMatch matches = re.match(field.m_databaseType);
                 QString enumItemsString = matches.captured(1).remove('\'');
-                Enum fieldTypeEnum(Namer::getClassName(field.m_name) + "_Enum", enumItemsString.split(",", QString::SplitBehavior::SkipEmptyParts));
+                QStringList enumItems = enumItemsString.split(",", QString::SplitBehavior::SkipEmptyParts);
+                // MySQL indexes enums from 1
+                enumItems.prepend(QStringLiteral("_empty"));
+                Enum fieldTypeEnum(Namer::getClassName(field.m_name) + "_Enum", enumItems);
                 tableClass.addEnum(fieldTypeEnum);
             }
 
@@ -192,15 +202,33 @@ bool NutCodeGen::generateFiles()
         }
         constructor.addInitializer("Nut::Table(parent)");
 
-
+        Code childTablesCode;
         for (auto rel : table->m_relations) {
-            tableClass.addDeclarationMacro(QString("NUT_DECLARE_CHILD_TABLE(%1, %2)")
-                                           .arg(Namer::getClassName(rel.tableB->m_name))
-                                           .arg(rel.tableB->m_name));
-            tableClass.addHeaderInclude("\"" + rel.tableB->m_name + ".h\"");
-            constructor.addInitializer(QString("m_%1(new TableSet<%2>(this))")
-                                       .arg(rel.tableB->m_name)
-                                       .arg(Namer::getClassName(rel.tableB->m_name)));
+            if (rel.m_type == TableRelation::HasMany) {
+                qWarning() << table->m_name << "HasMany" << rel.destinationTable->m_name;
+                tableClass.addDeclarationMacro(QString("NUT_DECLARE_CHILD_TABLE(%1, %2)")
+                                               .arg(Namer::getClassName(rel.destinationTable->m_name))
+                                               .arg(rel.destinationTable->m_name));
+                tableClass.addHeaderInclude("\"" + rel.destinationTable->m_name + ".h\"");
+                constructor.addInitializer(QString("m_%1(new Nut::TableSet<%2>(this))")
+                                           .arg(rel.destinationTable->m_name)
+                                           .arg(Namer::getClassName(rel.destinationTable->m_name)));
+                childTablesCode.addLine(QString("NUT_IMPLEMENT_CHILD_TABLE(%1, %2, %3)")
+                                        .arg(tableClass.name(), Namer::getClassName(rel.destinationTable->m_name), rel.destinationTable->m_name));
+            } else if (rel.m_type == TableRelation::BelongsTo) {
+                qWarning() << table->m_name << "BelongsTo" << rel.destinationTable->m_name;
+                tableClass.addDeclarationMacro(QString("NUT_FOREIGN_KEY_DECLARE(%1, int, %2, %2, set%3)")
+                                               .arg(Namer::getClassName(rel.destinationTable->m_name),
+                                                    rel.fieldName,
+                                                    Inflector::upperFirst(rel.fieldName)));
+                tableClass.addIncludes(QStringList(), QStringList() << Namer::getClassName(rel.destinationTable->m_name));
+                childTablesCode.addLine(QString("NUT_FOREIGN_KEY_IMPLEMENT(%1, %2, int, %3, %3, set%4)")
+                                        .arg(Namer::getClassName(table->m_name),
+                                             Namer::getClassName(rel.destinationTable->m_name),
+                                             rel.fieldName,
+                                             Inflector::upperFirst(rel.fieldName)));
+                tableClass.addInclude(QString("\"%1.h\"").arg(rel.destinationTable->m_name));
+            }
         }
         tableClass.addFunction(constructor);
 
@@ -213,6 +241,7 @@ bool NutCodeGen::generateFiles()
         file.addFileCode(code);
         file.clearCode();
         file.insertClass(tableClass);
+        file.addFileCode(childTablesCode);
         m_printer.printHeader(file);
         m_printer.printImplementation(file);
     }

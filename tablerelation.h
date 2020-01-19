@@ -16,7 +16,8 @@ public:
     };
 
     RelationType m_type;
-    Table *tableA = nullptr, *tableB = nullptr;
+    QString fieldName;
+    Table *destinationTable = nullptr;
 };
 
 #endif // TABLERELATION_H
