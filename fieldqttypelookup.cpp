@@ -22,7 +22,7 @@ QString FieldQtTypeLookup::getMySQLFieldQtType(const QString &databaseType)
     QString baseType = databaseType.toUpper();
     if (baseType == "CHAR(1)")
         return "QChar";
-    if (baseType == "BIT(1)")
+    if (baseType == "BIT(1)" || baseType == "TINYINT(1)")
         return "bool";
 
     QRegularExpression re("([a-zA-Z]*)\\([0-9]*.*");
