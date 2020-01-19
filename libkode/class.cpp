@@ -270,12 +270,12 @@ void Class::addEnum( const Enum &enumValue )
   d->mEnums.append( enumValue );
   KODE::Function enumParseFunction = enumValue.parserMethod();
   enumParseFunction.setReturnType( d->mName + "::" + enumParseFunction.returnType() );
-  enumParseFunction.setAccess( KODE::Function::Private );
+  enumParseFunction.setAccess( KODE::Function::Public );
   addFunction( enumParseFunction );
 
   KODE::Function enumWriteFunction = enumValue.writerMethod();
-  enumParseFunction.setReturnType( d->mName + "::" + enumWriteFunction.returnType() );
-  enumParseFunction.setAccess( KODE::Function::Private );
+  enumWriteFunction.setReturnType( "QString" );
+  enumWriteFunction.setAccess( KODE::Function::Private );
   addFunction( enumWriteFunction );
 }
 
