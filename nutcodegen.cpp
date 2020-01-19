@@ -195,14 +195,25 @@ bool NutCodeGen::generateFiles()
                                                .arg(field.m_length), false);
             }
 
-            tableClass.addDeclarationMacro(QString("NUT_DECLARE_FIELD(%1, %2, %2, set%3)")
-                                           .arg(FieldQtTypeLookup::getQtType(field.m_databaseType, FieldQtTypeLookup::MySQL))
-                                           .arg(field.m_name)
-                                           .arg(Style::upperFirst(field.m_name)));
+            // NUT_DECLARE_FIELD has to be skipped if it is a foreign key
+            bool skipFieldDeclaration = false;
+            for (auto rel : table->m_relations) {
+                if (rel.m_type == TableRelation::BelongsTo && rel.fieldName == field.m_name) {
+                    skipFieldDeclaration = true;
+                    qWarning() << "NUT_DECLARE_FIELD skipped for" << field.m_name;
+                    break;
+                }
+            }
+            if (!skipFieldDeclaration) {
+                tableClass.addDeclarationMacro(QString("NUT_DECLARE_FIELD(%1, %2, %2, set%3)")
+                                               .arg(FieldQtTypeLookup::getQtType(field.m_databaseType, FieldQtTypeLookup::MySQL))
+                                               .arg(field.m_name)
+                                               .arg(Style::upperFirst(field.m_name)));
+            }
         }
         constructor.addInitializer("Nut::Table(parent)");
 
-        Code childTablesCode;
+        Code postImplemntationCode;
         for (auto rel : table->m_relations) {
             if (rel.m_type == TableRelation::HasMany) {
                 qWarning() << table->m_name << "HasMany" << rel.destinationTable->m_name;
@@ -213,7 +224,7 @@ bool NutCodeGen::generateFiles()
                 constructor.addInitializer(QString("m_%1(new Nut::TableSet<%2>(this))")
                                            .arg(rel.destinationTable->m_name)
                                            .arg(Namer::getClassName(rel.destinationTable->m_name)));
-                childTablesCode.addLine(QString("NUT_IMPLEMENT_CHILD_TABLE(%1, %2, %3)")
+                postImplemntationCode.addLine(QString("NUT_IMPLEMENT_CHILD_TABLE(%1, %2, %3)")
                                         .arg(tableClass.name(), Namer::getClassName(rel.destinationTable->m_name), rel.destinationTable->m_name));
             } else if (rel.m_type == TableRelation::BelongsTo) {
                 qWarning() << table->m_name << "BelongsTo" << rel.destinationTable->m_name;
@@ -222,7 +233,7 @@ bool NutCodeGen::generateFiles()
                                                     rel.fieldName,
                                                     Inflector::upperFirst(rel.fieldName)));
                 tableClass.addIncludes(QStringList(), QStringList() << Namer::getClassName(rel.destinationTable->m_name));
-                childTablesCode.addLine(QString("NUT_FOREIGN_KEY_IMPLEMENT(%1, %2, int, %3, %3, set%4)")
+                postImplemntationCode.addLine(QString("NUT_FOREIGN_KEY_IMPLEMENT(%1, %2, int, %3, %3, set%4)")
                                         .arg(Namer::getClassName(table->m_name),
                                              Namer::getClassName(rel.destinationTable->m_name),
                                              rel.fieldName,
@@ -230,6 +241,7 @@ bool NutCodeGen::generateFiles()
                 tableClass.addInclude(QString("\"%1.h\"").arg(rel.destinationTable->m_name));
             }
         }
+        tableClass.setPostImplementationCode(postImplemntationCode);
         tableClass.addFunction(constructor);
 
         File file;
@@ -241,7 +253,6 @@ bool NutCodeGen::generateFiles()
         file.addFileCode(code);
         file.clearCode();
         file.insertClass(tableClass);
-        file.addFileCode(childTablesCode);
         m_printer.printHeader(file);
         m_printer.printImplementation(file);
     }
