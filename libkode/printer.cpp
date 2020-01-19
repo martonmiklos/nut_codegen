@@ -952,6 +952,8 @@ void Printer::printImplementation( const File &file, bool createHeaderInclude )
     QString str = d->classImplementation( *it );
     if ( !str.isEmpty() )
       out += d->classImplementation( *it );
+
+    out += (*it).postImplementationCode();
   }
 
   if ( !file.nameSpace().isEmpty() ) {

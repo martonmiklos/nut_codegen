@@ -339,6 +339,15 @@ class KODE_EXPORT Class
      */
     bool declareMetatype() const;
 
+    /**
+     * @brief setPostImplementationCode
+     * This method can be used for adding code genrated right after the implementation of a class.
+     * @param code
+     */
+    void setPostImplementationCode(const KODE::Code & code);
+
+    QString postImplementationCode() const;
+
   private:
     class Private;
     Private* d;

@@ -55,6 +55,7 @@ class Class::Private
     QString mParentClassName;
     QList<DeclarationMacro> mDeclMacros;
     bool mDeclareMetaType = false;
+    KODE::Code mPostImplementationCode;
 };
 
 Class::Class()
@@ -493,6 +494,16 @@ void Class::setDeclareMetatype(bool declare)
 bool Class::declareMetatype() const
 {
     return d->mDeclareMetaType;
+}
+
+void Class::setPostImplementationCode(const Code &code)
+{
+    d->mPostImplementationCode = code;
+}
+
+QString Class::postImplementationCode() const
+{
+    return d->mPostImplementationCode.text();
 }
 
 void KODE::Class::setNamespaceAndName( const QString& name )
