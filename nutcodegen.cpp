@@ -152,10 +152,17 @@ bool NutCodeGen::generateFiles()
     Class base("Nut::Table");
     foreach (auto table, m_tables) {
         Class tableClass(Namer::getClassName(table->m_name));
+        tableClass.addHeaderInclude("Table");
+        tableClass.addHeaderInclude("TableSet");
+        tableClass.addInclude("", "Table");
+        tableClass.addBaseClass(base);
+        tableClass.addDeclarationMacro("Q_OBJECT");
+        tableClass.setDeclareMetatype();
 
         Function constructor(Namer::getClassName(tableClass.name()));
         Function::Argument parent("QObject *parent", "nullptr");
         constructor.addArgument(parent);
+        constructor.setPreReturnTypeDeclarationMacro("Q_INVOKABLE");
 
         for (auto field : table->m_fields) {
             if (field.m_databaseType.startsWith("enum")) {
@@ -222,16 +229,26 @@ bool NutCodeGen::generateFiles()
                                         .arg(tableClass.name(), Namer::getClassName(rel.destinationTable->m_name), rel.destinationTable->m_name));
             } else if (rel.m_type == TableRelation::BelongsTo) {
                 qWarning() << table->m_name << "BelongsTo" << rel.destinationTable->m_name;
-                tableClass.addDeclarationMacro(QString("NUT_FOREIGN_KEY_DECLARE(%1, int, %2, %2, set%3)")
-                                               .arg(Namer::getClassName(rel.destinationTable->m_name),
-                                                    rel.fieldName,
-                                                    Inflector::upperFirst(rel.fieldName)));
+
+                // NUT_FOREIGN_KEY_DECLARE(type, keytype, keyname, keywrite, name, read, write)
+                tableClass.addDeclarationMacro(QString("NUT_FOREIGN_KEY_DECLARE(%1, int, %2, set%3, %4, %4, set%5)")
+                                               .arg(Namer::getClassName(rel.destinationTable->m_name)) // type
+                                               .arg(rel.fieldName) // keyname
+                                               .arg(Inflector::upperFirst(rel.fieldName)) // keywrite
+                                               .arg(Namer::singularize(rel.destinationTable->m_name)) // name, read
+                                               .arg(Inflector::upperFirst(Namer::singularize(rel.destinationTable->m_name))) // write
+                                               );
                 tableClass.addIncludes(QStringList(), QStringList() << Namer::getClassName(rel.destinationTable->m_name));
-                postImplemntationCode.addLine(QString("NUT_FOREIGN_KEY_IMPLEMENT(%1, %2, int, %3, %3, set%4)")
-                                        .arg(Namer::getClassName(table->m_name),
-                                             Namer::getClassName(rel.destinationTable->m_name),
-                                             rel.fieldName,
-                                             Inflector::upperFirst(rel.fieldName)));
+
+                // NUT_FOREIGN_KEY_IMPLEMENT(class, type, keytype, keyname, keywrite, name, read, write)
+                postImplemntationCode.addLine(QString("NUT_FOREIGN_KEY_IMPLEMENT(%1, %2, int, %3, set%4, %5, %5, set%6)")
+                                              .arg(Namer::getClassName(table->m_name)) // class
+                                              .arg(Namer::getClassName(rel.destinationTable->m_name)) // type
+                                              .arg(rel.fieldName) // keyname
+                                              .arg(Inflector::upperFirst(rel.fieldName)) // keywrite
+                                              .arg(Namer::singularize(rel.destinationTable->m_name)) // name, read
+                                              .arg(Inflector::upperFirst(Namer::singularize(rel.destinationTable->m_name))) // write
+                                              );
                 tableClass.addInclude(QString("\"%1.h\"").arg(rel.destinationTable->m_name));
             }
         }
@@ -285,6 +302,7 @@ bool NutCodeGen::generateDatabaseClass()
                                    .arg(Namer::getClassName(table->m_name)));
 
         constructor.addBodyLine(QString("qRegisterMetaType<%1*>();").arg(Namer::getClassName(table->m_name)));
+        constructor.setPreReturnTypeDeclarationMacro("Q_INVOKABLE");
     }
     dbClass.addFunction(constructor);
 
