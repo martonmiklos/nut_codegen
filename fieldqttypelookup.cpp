@@ -31,7 +31,7 @@ QString FieldQtTypeLookup::getMySQLFieldQtType(const QString &databaseType)
         baseType = match.captured(1).toUpper();
     }
 
-    if (baseType == "ENUM") return "int";
+    if (baseType == "ENUM") return "QString";
     if (baseType == "BOOLEAN") return "bool";
     if (baseType == "VARBINARY") return "QBitArray";
     if (baseType == "BLOB") return "QByteArray";
