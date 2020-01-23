@@ -156,7 +156,6 @@ bool NutCodeGen::generateFiles()
         Function constructor(Namer::getClassName(tableClass.name()));
         Function::Argument parent("QObject *parent", "nullptr");
         constructor.addArgument(parent);
-        constructor.setPreReturnTypeDeclarationMacro("Q_INVOKABLE");
 
         for (auto field : table->m_fields) {
             if (field.m_databaseType.startsWith("enum")) {
@@ -286,7 +285,6 @@ bool NutCodeGen::generateDatabaseClass()
                                    .arg(Namer::getClassName(table->m_name)));
 
         constructor.addBodyLine(QString("qRegisterMetaType<%1*>();").arg(Namer::getClassName(table->m_name)));
-        constructor.setPreReturnTypeDeclarationMacro("Q_INVOKABLE");
     }
     dbClass.addFunction(constructor);
 
