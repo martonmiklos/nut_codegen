@@ -271,12 +271,14 @@ void Class::addEnum( const Enum &enumValue )
   d->mEnums.append( enumValue );
   KODE::Function enumParseFunction = enumValue.parserMethod();
   enumParseFunction.setReturnType( d->mName + "::" + enumParseFunction.returnType() );
+  enumParseFunction.setPreReturnTypeDeclarationMacro("Q_INVOKABLE");
   enumParseFunction.setAccess( KODE::Function::Public );
   addFunction( enumParseFunction );
 
   KODE::Function enumWriteFunction = enumValue.writerMethod();
   enumWriteFunction.setReturnType( "QString" );
-  enumWriteFunction.setAccess( KODE::Function::Private );
+  enumWriteFunction.setAccess( KODE::Function::Public );
+  enumWriteFunction.setPreReturnTypeDeclarationMacro("Q_INVOKABLE");
   addFunction( enumWriteFunction );
 }
 
