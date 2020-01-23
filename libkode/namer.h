@@ -28,6 +28,7 @@ class Namer
 {
   public:
     static QString getClassName( const QString & );
+    static QString singularize( const QString & );
     static QString getAccessor( const QString & );
     static QString getListAccessor( const QString & );
     static QString getMutator( const QString & );

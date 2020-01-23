@@ -61,7 +61,7 @@ class Printer::Private
     QString mGenerator;
     QString mOutputDirectory;
     QString mSourceFile;
-    bool mVerbose = false;
+    bool mVerbose = true;
 };
 
 void Printer::Private::addLabel( Code& code, const QString& label )
@@ -602,6 +602,8 @@ QString Printer::functionSignature( const Function &function,
                                     bool forImplementation )
 {
   QString s;
+  if ( !forImplementation && !function.preReturnTypeDeclarationMacro().isEmpty())
+      s += function.preReturnTypeDeclarationMacro() + " ";
 
   if ( function.isStatic() && !forImplementation ) {
     s += "static ";
@@ -997,7 +999,8 @@ void Printer::printCodeIntoFile(const Code &code, QFile *file)
         break;
       }
     }
-    identical = fileStream.atEnd() && codeStream.atEnd();
+    if (identical)
+        identical = fileStream.atEnd() && codeStream.atEnd();
     file->close();
   } else {
     identical = false;

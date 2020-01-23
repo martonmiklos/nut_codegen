@@ -227,6 +227,16 @@ class KODE_EXPORT Function
      */
     QString docs() const;
 
+    /**
+     * @brief setPreReturnTypeDeclarationMacro
+     * This method could be used to add a macro before the return type
+     * in the declaration. For e.g. Q_INVOKABLE
+     * @param macro
+     */
+    void setPreReturnTypeDeclarationMacro(const QString & macro);
+
+    QString preReturnTypeDeclarationMacro() const;
+
   private:
     class FunctionPrivate;
     FunctionPrivate *d;

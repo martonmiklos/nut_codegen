@@ -74,6 +74,7 @@ class Function::FunctionPrivate
     QString mBody;
     QString mDocs;
     Function::VirtualMode mVirtualMode;
+    QString mPreReturnTypeMacro;
 };
 
 Function::Function()
@@ -247,7 +248,17 @@ void Function::setDocs( const QString &docs )
 
 QString Function::docs() const
 {
-  return d->mDocs;
+    return d->mDocs;
+}
+
+void Function::setPreReturnTypeDeclarationMacro(const QString &macro)
+{
+  d->mPreReturnTypeMacro = macro;
+}
+
+QString Function::preReturnTypeDeclarationMacro() const
+{
+  return d->mPreReturnTypeMacro;
 }
 
 bool Function::hasArguments() const

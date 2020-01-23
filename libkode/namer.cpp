@@ -163,6 +163,13 @@ QString Namer::getClassName( const QString &elementName )
   return name;
 }
 
+QString Namer::singularize(const QString & name)
+{
+    if (name.endsWith("s"))
+        return name.left(name.length() - 1);
+    return name;
+}
+
 QString Namer::getAccessor( const QString &elementName )
 {
   return substituteKeywords( lowerFirst( getClassName( elementName ) ) );
