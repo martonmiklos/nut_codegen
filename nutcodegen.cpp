@@ -152,17 +152,11 @@ bool NutCodeGen::generateFiles()
     Class base("Nut::Table");
     foreach (auto table, m_tables) {
         Class tableClass(Namer::getClassName(table->m_name));
-        tableClass.addHeaderInclude("Table");
-        tableClass.addHeaderInclude("TableSet");
-        tableClass.addInclude("", "Table");
-        tableClass.addBaseClass(base);
-        tableClass.addDeclarationMacro("Q_OBJECT");
-        tableClass.setDeclareMetatype();
-
 
         Function constructor(Namer::getClassName(tableClass.name()));
         Function::Argument parent("QObject *parent", "nullptr");
         constructor.addArgument(parent);
+        constructor.setPreReturnTypeDeclarationMacro("Q_INVOKABLE");
 
         for (auto field : table->m_fields) {
             if (field.m_databaseType.startsWith("enum")) {
@@ -174,6 +168,7 @@ bool NutCodeGen::generateFiles()
                 enumItems.prepend(QStringLiteral("_empty"));
                 Enum fieldTypeEnum(Namer::getClassName(field.m_name) + "_Enum", enumItems);
                 tableClass.addEnum(fieldTypeEnum);
+                tableClass.addDeclarationMacro(QString("NUT_ENUM(%1)").arg(field.m_name), false);
             }
 
             if (field.m_isPrimary) {
@@ -291,6 +286,7 @@ bool NutCodeGen::generateDatabaseClass()
                                    .arg(Namer::getClassName(table->m_name)));
 
         constructor.addBodyLine(QString("qRegisterMetaType<%1*>();").arg(Namer::getClassName(table->m_name)));
+        constructor.setPreReturnTypeDeclarationMacro("Q_INVOKABLE");
     }
     dbClass.addFunction(constructor);
 
