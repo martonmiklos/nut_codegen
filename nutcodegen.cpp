@@ -154,7 +154,6 @@ bool NutCodeGen::generateFiles()
         Class tableClass(Namer::getClassName(table->m_name));
         tableClass.addHeaderInclude("Table");
         tableClass.addHeaderInclude("TableSet");
-        tableClass.addInclude("", "Table");
         tableClass.addBaseClass(base);
         tableClass.addDeclarationMacro("Q_OBJECT");
         tableClass.setDeclareMetatype();
