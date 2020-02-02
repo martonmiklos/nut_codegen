@@ -254,6 +254,9 @@ bool NutCodeGen::generateFiles()
         tableClass.setPostImplementationCode(postImplemntationCode);
         tableClass.addFunction(constructor);
 
+        if (m_generateCloneMethod)
+            addCloneMethod(table, &tableClass);
+
         File file;
         file.setFilename(table->m_name);
         Code code;
@@ -271,6 +274,11 @@ bool NutCodeGen::generateFiles()
         return false;
 
     return generatePriFile();
+}
+
+void NutCodeGen::setGenerateCloneMethods(bool generateCopyConstructor)
+{
+    m_generateCloneMethod = generateCopyConstructor;
 }
 
 bool NutCodeGen::generateDatabaseClass()
@@ -342,4 +350,15 @@ bool NutCodeGen::generatePriFile()
     m_errorString = QObject::tr("Unable to open the %1 file for writing")
             .arg(file.fileName());
     return  false;
+}
+
+void NutCodeGen::addCloneMethod(const Table *table, KODE::Class *class_)
+{
+    Function copyConstructor;
+    copyConstructor.setName("clone");
+    copyConstructor.addArgument("const " + Namer::getClassName(table->m_name) + " & other");
+
+    for (auto field : table->m_fields)
+        copyConstructor.addBodyLine("set" + Namer::upperFirst(field.m_name) + "(other." + field.m_name + "());");
+    class_->addFunction(copyConstructor);
 }

@@ -59,8 +59,6 @@ class Namer
     static QString sanitize( const QString & name );
 
 
-
-  protected:
     static QString upperFirst( const QString &str );
     static QString lowerFirst( const QString &str );
 

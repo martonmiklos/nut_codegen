@@ -48,6 +48,11 @@ int main(int argc, char *argv[])
                 "user");
     cmdLine.addOption(userOption);
 
+    QCommandLineOption cloneMethodOption(
+                QStringList() << "add-clone-methods",
+                QCoreApplication::translate("main", "Generate copy methods for table classes"));
+    cmdLine.addOption(cloneMethodOption);
+
     cmdLine.process(app);
     if (!cmdLine.parse(QCoreApplication::arguments())) {
       qDebug() << cmdLine.errorText();
@@ -59,6 +64,9 @@ int main(int argc, char *argv[])
                   cmdLine.value(userOption),
                   cmdLine.value(passwordOption),
                   cmdLine.value(dirOption));
+    if (cmdLine.isSet(cloneMethodOption))
+        cg.setGenerateCloneMethods(true);
+
     if (!cg.readTables()) {
         qDebug() << cg.errorString();
         return -1;

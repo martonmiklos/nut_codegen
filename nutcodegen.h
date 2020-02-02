@@ -5,6 +5,7 @@
 #include <QString>
 #include <QSqlDatabase>
 
+#include "libkode/class.h"
 #include "libkode/printer.h"
 #include "table.h"
 
@@ -25,6 +26,8 @@ public:
 
     bool generateFiles();
 
+    void setGenerateCloneMethods(bool generateCopyConstructor);
+
 private:
     QSqlDatabase m_db;
     QString m_database;
@@ -32,7 +35,7 @@ private:
     QString m_username;
     QString m_password;
     QString m_workingDir;
-
+    bool m_generateCloneMethod = false;
     QString m_errorString;
 
     QList <Table*> m_tables;
@@ -41,7 +44,10 @@ private:
     bool generateTableClasses();
     bool generatePriFile();
 
+
     KODE::Printer m_printer;
+
+    void addCloneMethod(const Table *table, KODE::Class *class_);
 };
 
 #endif // NUTCODEGEN_H
