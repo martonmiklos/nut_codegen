@@ -8,7 +8,7 @@ class Table;
 class TableRelation
 {
 public:
-    TableRelation();
+    TableRelation() = default;
 
     enum RelationType {
         HasMany,
@@ -16,8 +16,9 @@ public:
     };
 
     RelationType m_type;
-    QString fieldName;
+    QString fieldName, referencedFieldName;
     Table *destinationTable = nullptr;
+    bool optional = false;
 };
 
 #endif // TABLERELATION_H

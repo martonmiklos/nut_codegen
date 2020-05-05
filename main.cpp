@@ -53,6 +53,11 @@ int main(int argc, char *argv[])
                 QCoreApplication::translate("main", "Generate copy methods for table classes"));
     cmdLine.addOption(cloneMethodOption);
 
+    QCommandLineOption equalsOpOption(
+                QStringList() << "add-equals-operator",
+                QCoreApplication::translate("main", "Generate copy methods for table classes"));
+    cmdLine.addOption(equalsOpOption);
+
     cmdLine.process(app);
     if (!cmdLine.parse(QCoreApplication::arguments())) {
       qDebug() << cmdLine.errorText();
@@ -66,6 +71,9 @@ int main(int argc, char *argv[])
                   cmdLine.value(dirOption));
     if (cmdLine.isSet(cloneMethodOption))
         cg.setGenerateCloneMethods(true);
+
+    if (cmdLine.isSet(equalsOpOption))
+        cg.setGenerateEqualsOperator(true);
 
     if (!cg.readTables()) {
         qDebug() << cg.errorString();

@@ -40,8 +40,7 @@ SOURCES += \
         main.cpp \
         nutcodegen.cpp \
         table.cpp \
-        tablefield.cpp \
-        tablerelation.cpp
+        tablefield.cpp
 
 
 # Default rules for deployment.

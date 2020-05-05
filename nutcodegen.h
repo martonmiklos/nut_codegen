@@ -27,6 +27,7 @@ public:
     bool generateFiles();
 
     void setGenerateCloneMethods(bool generateCopyConstructor);
+    void setGenerateEqualsOperator(bool generateEqualsOperator);
 
 private:
     QSqlDatabase m_db;
@@ -36,6 +37,7 @@ private:
     QString m_password;
     QString m_workingDir;
     bool m_generateCloneMethod = false;
+    bool m_generateEqualsOperator = false;
     QString m_errorString;
 
     QList <Table*> m_tables;
@@ -48,6 +50,7 @@ private:
     KODE::Printer m_printer;
 
     void addCloneMethod(const Table *table, KODE::Class *class_);
+    void addEqualsOperator(const Table *table, KODE::Class *class_);
 };
 
 #endif // NUTCODEGEN_H

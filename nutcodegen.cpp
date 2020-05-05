@@ -107,12 +107,15 @@ bool NutCodeGen::readRelations()
     for (auto table : m_tables) {
         for (auto field : table->m_fields) {
             QSqlQuery foreignKeyQuery;
-            foreignKeyQuery.prepare("SELECT REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME "
-                                    " FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE "
-                                    " WHERE "
-                                    " REFERENCED_TABLE_SCHEMA = :database AND "
-                                    " TABLE_NAME = :table AND "
-                                    " COLUMN_NAME = :field;");
+            foreignKeyQuery.prepare("SELECT "
+                                    "COLUMN_NAME, "
+                                    "REFERENCED_TABLE_NAME, "
+                                    "REFERENCED_COLUMN_NAME "
+                                    "FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE "
+                                    "WHERE "
+                                    "REFERENCED_TABLE_SCHEMA = :database AND "
+                                    "TABLE_NAME = :table AND "
+                                    "COLUMN_NAME = :field;");
             foreignKeyQuery.bindValue(":database", m_database);
             foreignKeyQuery.bindValue(":table", table->m_name);
             foreignKeyQuery.bindValue(":field", field.m_name);
@@ -125,6 +128,8 @@ bool NutCodeGen::readRelations()
                             rel.m_type = TableRelation::BelongsTo;
                             rel.destinationTable = t2;
                             rel.fieldName = field.m_name;
+                            rel.referencedFieldName = foreignKeyQuery.value("REFERENCED_COLUMN_NAME").toString();
+                            rel.optional = field.m_isNull;
                             table->m_relations.append(rel);
 
                             TableRelation backRel;
@@ -228,14 +233,15 @@ bool NutCodeGen::generateFiles()
                                         .arg(tableClass.name(), Namer::getClassName(rel.destinationTable->m_name), rel.destinationTable->m_name));
             } else if (rel.m_type == TableRelation::BelongsTo) {
                 qWarning() << table->m_name << "BelongsTo" << rel.destinationTable->m_name;
-
-                // NUT_FOREIGN_KEY_DECLARE(type, keytype, keyname, keywrite, name, read, write)
-                tableClass.addDeclarationMacro(QString("NUT_FOREIGN_KEY_DECLARE(%1, int, %2, set%3, %4, %4, set%5)")
+                // NUT_FOREIGN_KEY_DECLARE(type, keytype, keyname, keywrite, name, read, write, optional, related_field_name)
+                tableClass.addDeclarationMacro(QString("NUT_FOREIGN_KEY_DECLARE(%1, int, %2, set%3, %4, %4, set%5, %6, %7)")
                                                .arg(Namer::getClassName(rel.destinationTable->m_name)) // type
                                                .arg(rel.fieldName) // keyname
                                                .arg(Inflector::upperFirst(rel.fieldName)) // keywrite
                                                .arg(Namer::singularize(rel.destinationTable->m_name)) // name, read
                                                .arg(Inflector::upperFirst(Namer::singularize(rel.destinationTable->m_name))) // write
+                                               .arg(rel.optional ? "true" : "false") // optional
+                                               .arg(rel.referencedFieldName) //
                                                );
                 tableClass.addIncludes(QStringList(), QStringList() << Namer::getClassName(rel.destinationTable->m_name));
 
@@ -256,6 +262,9 @@ bool NutCodeGen::generateFiles()
 
         if (m_generateCloneMethod)
             addCloneMethod(table, &tableClass);
+
+        if (m_generateEqualsOperator)
+            addEqualsOperator(table, &tableClass);
 
         File file;
         file.setFilename(table->m_name);
@@ -279,6 +288,11 @@ bool NutCodeGen::generateFiles()
 void NutCodeGen::setGenerateCloneMethods(bool generateCopyConstructor)
 {
     m_generateCloneMethod = generateCopyConstructor;
+}
+
+void NutCodeGen::setGenerateEqualsOperator(bool generateEqualsOperator)
+{
+    m_generateEqualsOperator = generateEqualsOperator;
 }
 
 bool NutCodeGen::generateDatabaseClass()
@@ -355,10 +369,31 @@ bool NutCodeGen::generatePriFile()
 void NutCodeGen::addCloneMethod(const Table *table, KODE::Class *class_)
 {
     Function copyConstructor;
+    copyConstructor.setReturnType("void");
     copyConstructor.setName("clone");
-    copyConstructor.addArgument("const " + Namer::getClassName(table->m_name) + " & other");
+    copyConstructor.addArgument("const " + Namer::getClassName(table->m_name) + " * other");
 
     for (auto field : table->m_fields)
-        copyConstructor.addBodyLine("set" + Namer::upperFirst(field.m_name) + "(other." + field.m_name + "());");
+        copyConstructor.addBodyLine("set" + Namer::upperFirst(field.m_name) + "(other->" + field.m_name + "());");
     class_->addFunction(copyConstructor);
+}
+
+void NutCodeGen::addEqualsOperator(const Table *table, Class *class_)
+{
+    Function equalsOperator;
+    equalsOperator.setReturnType("bool");
+    equalsOperator.setName("operator==");
+    equalsOperator.addArgument("const " + Namer::getClassName(table->m_name) + " &other");
+
+    equalsOperator.addBodyLine("return (");
+    int i = 0;
+    for (auto field : table->m_fields) {
+        QString line = "(" + field.m_name + "() == other." + field.m_name + "())";
+        if (i)
+            line.prepend("&& ");
+        equalsOperator.addBodyLine(line);
+        i++;
+    }
+    equalsOperator.addBodyLine(");");
+    class_->addFunction(equalsOperator);
 }
