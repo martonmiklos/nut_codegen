@@ -15,6 +15,7 @@ public:
     };
 
     static QString getQtType(const QString &fieldType, const DbType dbType = MySQL);
+    static QString getInitializationValue(const QString &fieldType);
 private:
     static QString getMySQLFieldQtType(const QString &databaseType);
 };

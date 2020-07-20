@@ -17,6 +17,28 @@ QString FieldQtTypeLookup::getQtType(const QString &fieldType, const FieldQtType
     return QString();
 }
 
+QString FieldQtTypeLookup::getInitializationValue(const QString &fieldType)
+{
+    if (fieldType == "bool")
+        return "false";
+    else if (fieldType.startsWith("Q"))
+        return fieldType + "()";
+    else if (fieldType == "qreal"
+             || fieldType == "double")
+        return "0.0";
+    else if (fieldType == "float")
+        return "0.0f";
+    else if (fieldType == "qint8"
+             || fieldType == "short"
+             || fieldType == "ushort"
+             || fieldType == "int"
+             ||fieldType == "long"
+             || fieldType == "qlonglong")
+        return "0";
+    Q_UNREACHABLE();
+    return QString();
+}
+
 QString FieldQtTypeLookup::getMySQLFieldQtType(const QString &databaseType)
 {
     QString baseType = databaseType.toUpper();

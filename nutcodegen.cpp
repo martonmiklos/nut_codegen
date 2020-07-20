@@ -210,10 +210,12 @@ bool NutCodeGen::generateFiles()
                 }
             }
             if (!skipFieldDeclaration) {
-                tableClass.addDeclarationMacro(QString("NUT_DECLARE_FIELD(%1, %2, %2, set%3)")
-                                               .arg(FieldQtTypeLookup::getQtType(field.m_databaseType, FieldQtTypeLookup::MySQL))
+                const auto qttype = FieldQtTypeLookup::getQtType(field.m_databaseType, FieldQtTypeLookup::MySQL);
+                tableClass.addDeclarationMacro(QString("NUT_DECLARE_FIELD(%1, %2, %2, set%3, %4)")
+                                               .arg(qttype)
                                                .arg(field.m_name)
-                                               .arg(Style::upperFirst(field.m_name)));
+                                               .arg(Style::upperFirst(field.m_name))
+                                               .arg(FieldQtTypeLookup::getInitializationValue(qttype)));
             }
         }
         constructor.addInitializer("Nut::Table(parent)");
