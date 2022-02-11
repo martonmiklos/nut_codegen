@@ -19,11 +19,17 @@ NutCodeGen::NutCodeGen(const QString &database,
                        const QString &host,
                        const QString &username,
                        const QString &password,
-                       const QString &wd) :
+                       const QString &wd,
+                       FieldQtTypeLookup::DbType databaseType) :
     m_database(database),
     m_username(username),
-    m_password(password)
+    m_password(password),
+    m_databaseType(databaseType)
 {
+    m_fnBase = m_database;
+    if (m_databaseType == FieldQtTypeLookup::Sqlite)
+        m_fnBase = QFileInfo(m_database).baseName();
+
     if (!host.isEmpty())
         m_host = host;
 
@@ -41,6 +47,51 @@ NutCodeGen::~NutCodeGen()
 
 bool NutCodeGen::readTables()
 {
+    switch(m_databaseType) {
+    case FieldQtTypeLookup::Sqlite:
+        return readTablesSqlite();
+    case FieldQtTypeLookup::MySQL:
+        return readTablesMySql();
+    case FieldQtTypeLookup::PgSQL:
+        break;
+    case FieldQtTypeLookup::MsSQL:
+        break;
+    }
+    return false;
+}
+
+bool NutCodeGen::readTableFields()
+{
+    switch(m_databaseType) {
+    case FieldQtTypeLookup::Sqlite:
+        return readTableFieldsSqlite();
+    case FieldQtTypeLookup::MySQL:
+        return readTableFieldsMySql();
+    case FieldQtTypeLookup::PgSQL:
+        break;
+    case FieldQtTypeLookup::MsSQL:
+        break;
+    }
+    return false;
+}
+
+bool NutCodeGen::readRelations()
+{
+    switch(m_databaseType) {
+    case FieldQtTypeLookup::Sqlite:
+        return readRelationsSqlite();
+    case FieldQtTypeLookup::MySQL:
+        return readRelationsMySql();
+    case FieldQtTypeLookup::PgSQL:
+        break;
+    case FieldQtTypeLookup::MsSQL:
+        break;
+    }
+    return false;
+}
+
+bool NutCodeGen::readTablesMySql()
+{
     m_db = QSqlDatabase::addDatabase("QMYSQL");
     m_db.setHostName(m_host);
     m_db.setDatabaseName(m_database);
@@ -50,9 +101,7 @@ bool NutCodeGen::readTables()
         m_errorString = QObject::tr("Unable to open the %1 database on host %2\n"
                                     "Error details:\n"
                                     "%3")
-                .arg(m_database)
-                .arg(m_host)
-                .arg(m_db.lastError().text());
+                .arg(m_database, m_host, m_db.lastError().text());
         return false;
     }
 
@@ -63,8 +112,7 @@ bool NutCodeGen::readTables()
         m_errorString = QObject::tr("Unable to execute the %1 query\n"
                                     "Error details:\n"
                                     "%2")
-                .arg(showTablesQuery.lastQuery())
-                .arg(showTablesQuery.lastError().text());
+                .arg(showTablesQuery.lastQuery(), showTablesQuery.lastError().text());
         return false;
     }
 
@@ -77,16 +125,16 @@ bool NutCodeGen::readTables()
     return true;
 }
 
-bool NutCodeGen::readTableFields()
+bool NutCodeGen::readTableFieldsMySql()
 {
     QSqlQuery fieldsQuery;
-    for (auto table : m_tables) {
+    for (auto &table : qAsConst(m_tables)) {
         if (!fieldsQuery.exec(QString("SHOW COLUMNS FROM %1").arg(table->m_name))) {
             m_errorString = QObject::tr("Unable to execute the %1 query\n"
                                         "Error details:\n"
                                         "%2")
-                    .arg(fieldsQuery.lastQuery())
-                    .arg(fieldsQuery.lastError().text());
+                    .arg(fieldsQuery.lastQuery(),
+                         fieldsQuery.lastError().text());
             return false;
         }
 
@@ -102,10 +150,10 @@ bool NutCodeGen::readTableFields()
     return true;
 }
 
-bool NutCodeGen::readRelations()
+bool NutCodeGen::readRelationsMySql()
 {
-    for (auto table : m_tables) {
-        for (auto field : table->m_fields) {
+    for (auto &table : qAsConst(m_tables)) {
+        for (auto &field : qAsConst(table->m_fields)) {
             QSqlQuery foreignKeyQuery;
             foreignKeyQuery.prepare("SELECT "
                                     "COLUMN_NAME, "
@@ -121,7 +169,7 @@ bool NutCodeGen::readRelations()
             foreignKeyQuery.bindValue(":field", field.m_name);
             if (foreignKeyQuery.exec()) {
                 while (foreignKeyQuery.next()) {
-                    for(auto t2 : m_tables) {
+                    for(auto &t2 : qAsConst(m_tables)) {
                         if (t2->m_name == foreignKeyQuery.value("REFERENCED_TABLE_NAME").toString()) {
                             qWarning() << m_database << table->m_name << field.m_name << t2->m_name;
                             TableRelation rel;
@@ -138,6 +186,106 @@ bool NutCodeGen::readRelations()
                             t2->m_relations.append(backRel);
                             break;
                         }
+                    }
+                }
+            }
+        }
+    }
+    return true;
+}
+
+bool NutCodeGen::readTablesSqlite()
+{
+    m_db = QSqlDatabase::addDatabase("QSQLITE");
+    m_db.setDatabaseName(m_database);
+    if (!m_db.open()) {
+        m_errorString = QObject::tr("Unable to open the %1 database\n"
+                                    "Error details:\n"
+                                    "%3")
+                .arg(m_database, m_db.lastError().text());
+        return false;
+    }
+
+    QSqlQuery showTablesQuery;
+    showTablesQuery.prepare("SELECT name FROM sqlite_master WHERE type='table' and name != 'sqlite_sequence';");
+
+    if (!showTablesQuery.exec()) {
+        m_errorString = QObject::tr("Unable to execute the %1 query\n"
+                                    "Error details:\n"
+                                    "%2")
+                .arg(showTablesQuery.lastQuery(), showTablesQuery.lastError().text());
+        return false;
+    }
+
+    while (showTablesQuery.next()) {
+        if (showTablesQuery.value(0).toString() != ""
+                && showTablesQuery.value(0).toString().toLower() != "__change_logs")
+            m_tables << new Table(showTablesQuery.value(0).toString());
+    }
+
+    return true;
+}
+
+bool NutCodeGen::readTableFieldsSqlite()
+{
+    QSqlQuery fieldsQuery;
+    for (auto &table : qAsConst(m_tables)) {
+        if (!fieldsQuery.exec(QString("PRAGMA table_info(%1);").arg(table->m_name))) {
+            m_errorString = QObject::tr("Unable to execute the %1 query\n"
+                                        "Error details:\n"
+                                        "%2")
+                    .arg(fieldsQuery.lastQuery(),
+                         fieldsQuery.lastError().text());
+            return false;
+        }
+
+        while (fieldsQuery.next()) {
+            TableField field(fieldsQuery.value("name").toString(),
+                             fieldsQuery.value("type").toString(),
+                             fieldsQuery.value("pk") == QStringLiteral("1"));
+            field.m_isNull = (fieldsQuery.value("dflt_value").toString() != "NULL");
+
+            if (field.m_isPrimary) {
+                QSqlQuery aiQuery;
+                if (!aiQuery.exec(QString("SELECT 'is-autoincrement' FROM sqlite_master WHERE tbl_name='%1' AND sql LIKE '%AUTOINCREMENT%';").arg(table->m_name))) {
+                    m_errorString = QObject::tr("Unable to execute the %1 query\n"
+                                                "Error details:\n"
+                                                "%2")
+                            .arg(aiQuery.lastQuery(),
+                                 aiQuery.lastError().text());
+                    return false;
+                }
+                field.setAutoIncrement(aiQuery.next());
+            }
+            table->m_fields.append(field);
+        }
+    }
+    return true;
+}
+
+bool NutCodeGen::readRelationsSqlite()
+{
+    for (const auto &table : qAsConst(m_tables)) {
+        QSqlQuery foreignKeyQuery;
+        if (foreignKeyQuery.exec(QString("PRAGMA foreign_key_list(%1);").arg(table->m_name))) {
+            while (foreignKeyQuery.next()) {
+                qWarning() << m_database << table->m_name << foreignKeyQuery.value("from") << foreignKeyQuery.value("table");
+
+                for (const auto &otherTable : qAsConst(m_tables)) {
+                    if (otherTable->m_name == foreignKeyQuery.value("table")) {
+                        TableRelation rel;
+                        rel.m_type = TableRelation::BelongsTo;
+                        rel.destinationTable = otherTable;
+                        rel.fieldName = foreignKeyQuery.value("from").toString();
+                        rel.referencedFieldName = foreignKeyQuery.value("to").toString();
+                        rel.optional = true; // fixme
+                        table->m_relations.append(rel);
+
+                        TableRelation backRel;
+                        backRel.m_type = TableRelation::HasMany;
+                        backRel.destinationTable = table;
+                        otherTable->m_relations.append(backRel);
+                        break;
                     }
                 }
             }
@@ -168,7 +316,7 @@ bool NutCodeGen::generateFiles()
         constructor.addArgument(parent);
         constructor.setPreReturnTypeDeclarationMacro("Q_INVOKABLE");
 
-        for (auto field : table->m_fields) {
+        for (auto &field : table->m_fields) {
             if (field.m_databaseType.startsWith("enum")) {
                 QRegularExpression re("enum\\(([^\\)]*)\\)");
                 QRegularExpressionMatch matches = re.match(field.m_databaseType);
@@ -202,7 +350,7 @@ bool NutCodeGen::generateFiles()
 
             // NUT_DECLARE_FIELD has to be skipped if it is a foreign key
             bool skipFieldDeclaration = false;
-            for (auto rel : table->m_relations) {
+            for (auto &rel : qAsConst(table->m_relations)) {
                 if (rel.m_type == TableRelation::BelongsTo && rel.fieldName == field.m_name) {
                     skipFieldDeclaration = true;
                     qWarning() << "NUT_DECLARE_FIELD skipped for" << field.m_name;
@@ -210,29 +358,28 @@ bool NutCodeGen::generateFiles()
                 }
             }
             if (!skipFieldDeclaration) {
-                const auto qttype = FieldQtTypeLookup::getQtType(field.m_databaseType, FieldQtTypeLookup::MySQL);
+                const auto qttype = FieldQtTypeLookup::getQtType(field.m_databaseType, m_databaseType);
                 tableClass.addDeclarationMacro(QString("NUT_DECLARE_FIELD(%1, %2, %2, set%3, %4)")
-                                               .arg(qttype)
-                                               .arg(field.m_name)
-                                               .arg(Style::upperFirst(field.m_name))
-                                               .arg(FieldQtTypeLookup::getInitializationValue(qttype)));
+                                               .arg(qttype,
+                                                    field.m_name,
+                                                    Style::upperFirst(field.m_name),
+                                                    FieldQtTypeLookup::getInitializationValue(qttype)));
             }
         }
         constructor.addInitializer("Nut::Table(parent)");
 
         Code postImplemntationCode;
-        for (auto rel : table->m_relations) {
+        for (auto &rel : qAsConst(table->m_relations)) {
             if (rel.m_type == TableRelation::HasMany) {
                 qWarning() << table->m_name << "HasMany" << rel.destinationTable->m_name;
                 tableClass.addDeclarationMacro(QString("NUT_DECLARE_CHILD_TABLE(%1, %2)")
-                                               .arg(Namer::getClassName(rel.destinationTable->m_name))
-                                               .arg(rel.destinationTable->m_name));
+                                               .arg(Namer::getClassName(rel.destinationTable->m_name),
+                                                    rel.destinationTable->m_name));
                 tableClass.addHeaderInclude("\"" + rel.destinationTable->m_name + ".h\"");
                 constructor.addInitializer(QString("m_%1(new Nut::TableSet<%2>(this))")
-                                           .arg(rel.destinationTable->m_name)
-                                           .arg(Namer::getClassName(rel.destinationTable->m_name)));
+                                           .arg(rel.destinationTable->m_name, Namer::getClassName(rel.destinationTable->m_name)));
                 postImplemntationCode.addLine(QString("NUT_IMPLEMENT_CHILD_TABLE(%1, %2, %3)")
-                                        .arg(tableClass.name(), Namer::getClassName(rel.destinationTable->m_name), rel.destinationTable->m_name));
+                                              .arg(tableClass.name(), Namer::getClassName(rel.destinationTable->m_name), rel.destinationTable->m_name));
             } else if (rel.m_type == TableRelation::BelongsTo) {
                 qWarning() << table->m_name << "BelongsTo" << rel.destinationTable->m_name;
                 // NUT_FOREIGN_KEY_DECLARE(type, keytype, keyname, keywrite, name, read, write, optional, related_field_name)
@@ -299,7 +446,7 @@ void NutCodeGen::setGenerateEqualsOperator(bool generateEqualsOperator)
 
 bool NutCodeGen::generateDatabaseClass()
 {
-    Class dbClass(Namer::getClassName(m_database));
+    Class dbClass(Namer::getClassName(m_fnBase));
     Class base("Nut::Database");
 
     dbClass.addHeaderInclude("Database");
@@ -310,19 +457,17 @@ bool NutCodeGen::generateDatabaseClass()
     dbClass.addDeclarationMacro("NUT_DB_VERSION(1)");
     dbClass.addBaseClass(base);
 
-    Function constructor(Namer::getClassName(m_database));
+    Function constructor(Namer::getClassName(m_fnBase));
     constructor.addInitializer("Database()");
 
-    for (auto table : m_tables) {
+    for (auto &table : qAsConst(m_tables)) {
         dbClass.addHeaderInclude("\""+table->m_name + ".h\"");
         dbClass.addDeclarationMacro(
                     QString("NUT_DECLARE_TABLE(%1, %2)")
-                    .arg(Namer::getClassName(table->m_name))
-                    .arg(Inflector::underScore(table->m_name).toLower()), false
+                    .arg(Namer::getClassName(table->m_name), Inflector::underScore(table->m_name).toLower()), false
                     );
         constructor.addInitializer(QString("m_%1(new Nut::TableSet<%2>(this))")
-                                   .arg(Inflector::underScore(table->m_name).toLower())
-                                   .arg(Namer::getClassName(table->m_name)));
+                                   .arg(Inflector::underScore(table->m_name).toLower(), Namer::getClassName(table->m_name)));
 
         constructor.addBodyLine(QString("qRegisterMetaType<%1*>();").arg(Namer::getClassName(table->m_name)));
         constructor.setPreReturnTypeDeclarationMacro("Q_INVOKABLE");
@@ -331,7 +476,7 @@ bool NutCodeGen::generateDatabaseClass()
 
 
     File file;
-    file.setFilename(m_database);
+    file.setFilename(m_fnBase);
     Code code;
     code.addLine("#ifdef NUT_NAMESPACE");
     code.addLine("using namespace NUT_NAMESPACE;");
@@ -346,18 +491,18 @@ bool NutCodeGen::generateDatabaseClass()
 
 bool NutCodeGen::generatePriFile()
 {
-    QFile file(m_workingDir + QDir::separator() + m_database + ".pri");
+    QFile file(m_workingDir + QDir::separator() + m_fnBase + ".pri");
     if (file.open(QFile::WriteOnly | QFile::Text)) {
         QTextStream ts(&file);
         ts << "HEADERS += \\\n";
-        ts << "    $$PWD/" << m_database << (m_tables.count() ? ".h \\" : ".h") << "\n";
-        for (auto tbl : m_tables) {
+        ts << "    $$PWD/" << m_fnBase << (m_tables.count() ? ".h \\" : ".h") << "\n";
+        for (auto & tbl : qAsConst(m_tables)) {
             ts << "    $$PWD/" << tbl->m_name << (tbl == m_tables.last() ? ".h" : ".h \\") << "\n";
         }
         ts << "\n";
         ts << "SOURCES += \\\n";
-        ts << "    $$PWD/" << m_database << (m_tables.count() ? ".cpp \\" : ".cpp") << "\n";
-        for (auto tbl : m_tables) {
+        ts << "    $$PWD/" << m_fnBase << (m_tables.count() ? ".cpp \\" : ".cpp") << "\n";
+        for (auto tbl : qAsConst(m_tables)) {
             ts << "    $$PWD/" << tbl->m_name << (tbl == m_tables.last() ? ".cpp" : ".cpp \\") << "\n";
         }
         file.close();
@@ -399,3 +544,4 @@ void NutCodeGen::addEqualsOperator(const Table *table, Class *class_)
     equalsOperator.addBodyLine(");");
     class_->addFunction(equalsOperator);
 }
+

@@ -5,6 +5,7 @@
 #include <QString>
 #include <QSqlDatabase>
 
+#include "fieldqttypelookup.h"
 #include "libkode/class.h"
 #include "libkode/printer.h"
 #include "table.h"
@@ -16,8 +17,9 @@ public:
                const QString &host,
                const QString &username,
                const QString &password,
-               const QString &workingDirectory);
+               const QString &workingDirectory, FieldQtTypeLookup::DbType databaseType);
     ~NutCodeGen();
+
     bool readTables();
     bool readTableFields();
     bool readRelations();
@@ -30,6 +32,14 @@ public:
     void setGenerateEqualsOperator(bool generateEqualsOperator);
 
 private:
+    bool readTablesMySql();
+    bool readTableFieldsMySql();
+    bool readRelationsMySql();
+
+    bool readTablesSqlite();
+    bool readTableFieldsSqlite();
+    bool readRelationsSqlite();
+
     QSqlDatabase m_db;
     QString m_database;
     QString m_host = QStringLiteral("localhost");
@@ -46,11 +56,13 @@ private:
     bool generateTableClasses();
     bool generatePriFile();
 
-
     KODE::Printer m_printer;
 
     void addCloneMethod(const Table *table, KODE::Class *class_);
     void addEqualsOperator(const Table *table, KODE::Class *class_);
+
+    FieldQtTypeLookup::DbType m_databaseType;
+    QString m_fnBase;
 };
 
 #endif // NUTCODEGEN_H

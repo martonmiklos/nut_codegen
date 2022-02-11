@@ -6,7 +6,7 @@ QString FieldQtTypeLookup::getQtType(const QString &fieldType, const FieldQtType
 {
     switch (dbType) {
     case FieldQtTypeLookup::Sqlite:
-        break;
+        return getSqliteFieldQtType(fieldType);
     case FieldQtTypeLookup::MySQL:
         return getMySQLFieldQtType(fieldType);
     case FieldQtTypeLookup::PgSQL:
@@ -71,5 +71,15 @@ QString FieldQtTypeLookup::getMySQLFieldQtType(const QString &databaseType)
     if (baseType == "TEXT") return "QString";
     if (baseType == "VARCHAR") return "QString";
     if (baseType == "DECIMAL") return "qreal";
+    return databaseType;
+}
+
+QString FieldQtTypeLookup::getSqliteFieldQtType(const QString &databaseType)
+{
+    QString baseType = databaseType.toUpper();
+    if (baseType == "INTEGER") return "int";
+    if (baseType == "REAL") return "double";
+    if (baseType == "TEXT") return "QString";
+    if (baseType == "BLOB") return "QByteArray";
     return databaseType;
 }

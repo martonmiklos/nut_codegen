@@ -18,6 +18,7 @@ public:
     static QString getInitializationValue(const QString &fieldType);
 private:
     static QString getMySQLFieldQtType(const QString &databaseType);
+    static QString getSqliteFieldQtType(const QString &databaseType);
 };
 
 #endif // FIELDQTTYPELOOKUP_H

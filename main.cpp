@@ -60,15 +60,17 @@ int main(int argc, char *argv[])
 
     cmdLine.process(app);
     if (!cmdLine.parse(QCoreApplication::arguments())) {
-      qDebug() << cmdLine.errorText();
-      return -1;
+        qDebug() << cmdLine.errorText();
+        return -1;
     }
 
     NutCodeGen cg(cmdLine.value(databaseOption),
                   cmdLine.value(hostOption),
                   cmdLine.value(userOption),
                   cmdLine.value(passwordOption),
-                  cmdLine.value(dirOption));
+                  cmdLine.value(dirOption),
+                  !QFileInfo::exists(cmdLine.value(databaseOption))
+                  ? FieldQtTypeLookup::DbType::MySQL : FieldQtTypeLookup::Sqlite);
     if (cmdLine.isSet(cloneMethodOption))
         cg.setGenerateCloneMethods(true);
 
@@ -89,6 +91,7 @@ int main(int argc, char *argv[])
         qDebug() << cg.errorString();
         return -1;
     }
+
     cg.generateFiles();
     return 0;
 }
